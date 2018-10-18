@@ -40,50 +40,50 @@ import edu.wpi.first.wpilibj.Joystick.AxisType;
 
 public class Robot extends IterativeRobot {
 
-	TalonSRX _talon = new TalonSRX(1);
-	Joystick _joy = new Joystick(0);
-	StringBuilder _sb = new StringBuilder();
-	int _loops = 0;
-	boolean _lastButton1 = false;
+	TalonSRX talon = new TalonSRX(1);
+	Joystick joystick = new Joystick(0);
+	StringBuilder stringBuffer = new StringBuilder();
+	int nLoops = 0;
+	boolean PrevPressWasButton1 = false;
 	/** save the target position to servo to */
 	double targetPositionRotations;
 
 	public void robotInit() {
 
 		/* choose the sensor and sensor direction */
-		_talon.configSelectedFeedbackSensor(FeedbackDevice.CTRE_MagEncoder_Relative, Constants.kPIDLoopIdx,
+		talon.configSelectedFeedbackSensor(FeedbackDevice.CTRE_MagEncoder_Relative, Constants.kPIDLoopIdx,
 				Constants.kTimeoutMs);
 
 		/* choose to ensure sensor is positive when output is positive */
-		_talon.setSensorPhase(Constants.kSensorPhase);
+		talon.setSensorPhase(Constants.kSensorPhase);
 
 		/* choose based on what direction you want forward/positive to be.
 		 * This does not affect sensor phase. */ 
-		_talon.setInverted(Constants.kMotorInvert);
+		talon.setInverted(Constants.kMotorInvert);
 
 		/* set the peak and nominal outputs, 12V means full */
-		_talon.configNominalOutputForward(0, Constants.kTimeoutMs);
-		_talon.configNominalOutputReverse(0, Constants.kTimeoutMs);
-		_talon.configPeakOutputForward(1, Constants.kTimeoutMs);
-		_talon.configPeakOutputReverse(-1, Constants.kTimeoutMs);
+		talon.configNominalOutputForward(0, Constants.kTimeoutMs);
+		talon.configNominalOutputReverse(0, Constants.kTimeoutMs);
+		talon.configPeakOutputForward(1, Constants.kTimeoutMs);
+		talon.configPeakOutputReverse(-1, Constants.kTimeoutMs);
 		/*
 		 * set the allowable closed-loop error, Closed-Loop output will be
 		 * neutral within this range. See Table in Section 17.2.1 for native
 		 * units per rotation.
 		 */
-		_talon.configAllowableClosedloopError(0, Constants.kPIDLoopIdx, Constants.kTimeoutMs);
+		talon.configAllowableClosedloopError(0, Constants.kPIDLoopIdx, Constants.kTimeoutMs);
 
 		/* set closed loop gains in slot0, typically kF stays zero. */
-		_talon.config_kF(Constants.kPIDLoopIdx, 0.0, Constants.kTimeoutMs);
-		_talon.config_kP(Constants.kPIDLoopIdx, 0.1, Constants.kTimeoutMs);
-		_talon.config_kI(Constants.kPIDLoopIdx, 0.0, Constants.kTimeoutMs);
-		_talon.config_kD(Constants.kPIDLoopIdx, 0.0, Constants.kTimeoutMs);
+		talon.config_kF(Constants.kPIDLoopIdx, 0.0, Constants.kTimeoutMs);
+		talon.config_kP(Constants.kPIDLoopIdx, 0.1, Constants.kTimeoutMs);
+		talon.config_kI(Constants.kPIDLoopIdx, 0.0, Constants.kTimeoutMs);
+		talon.config_kD(Constants.kPIDLoopIdx, 0.0, Constants.kTimeoutMs);
 
 		/*
 		 * lets grab the 360 degree position of the MagEncoder's absolute
 		 * position, and intitally set the relative sensor to match.
 		 */
-		int absolutePosition = _talon.getSensorCollection().getPulseWidthPosition();
+		int absolutePosition = talon.getSensorCollection().getPulseWidthPosition();
 		/* mask out overflows, keep bottom 12 bits */
 		absolutePosition &= 0xFFF;
 		if (Constants.kSensorPhase)
@@ -91,7 +91,7 @@ public class Robot extends IterativeRobot {
 		if (Constants.kMotorInvert)
 			absolutePosition *= -1;
 		/* set the quadrature (relative) sensor to match absolute */
-		_talon.setSelectedSensorPosition(absolutePosition, Constants.kPIDLoopIdx, Constants.kTimeoutMs);
+		talon.setSelectedSensorPosition(absolutePosition, Constants.kPIDLoopIdx, Constants.kTimeoutMs);
 	}
 	public void disabledPeriodic() {
 		commonLoop();
@@ -104,10 +104,10 @@ public class Robot extends IterativeRobot {
 	}
 	void commonLoop() {
 		/* get gamepad axis */
-		double leftYstick = _joy.getY();
-		double motorOutput = _talon.getMotorOutputPercent();
-		boolean button1 = _joy.getRawButton(1);
-		boolean button2 = _joy.getRawButton(2);
+		double leftYstick = joystick.getY();
+		double motorOutput = talon.getMotorOutputPercent();
+		boolean button1 = joystick.getRawButton(1);
+		boolean button2 = joystick.getRawButton(2);
 		/* deadband gamepad */
 		if (Math.abs(leftYstick) < 0.10) {
 			/* within 10% of zero */
@@ -119,53 +119,53 @@ public class Robot extends IterativeRobot {
 		SmartDashboard.putNumber("motorOutput", motorOutput);
 		SmartDashboard.putBoolean("button1", button1);
 		SmartDashboard.putBoolean("button2", button2);
-		SmartDashboard.putBoolean("lastButton1", _lastButton1);
+		SmartDashboard.putBoolean("Previous Press was Button1", PrevPressWasButton1);
 		
 		
 		/* prepare line to print */
-		_sb.append("\tout:");
+		stringBuffer.append("\tout:");
 		/* cast to int to remove decimal places */
-		_sb.append((int) (motorOutput * 100));
-		_sb.append("%"); /* perc */
+		stringBuffer.append((int) (motorOutput * 100));
+		stringBuffer.append("%"); /* perc */
 
-		_sb.append("\tpos:");
-		_sb.append(_talon.getSelectedSensorPosition(0));
-		_sb.append("u"); /* units */
+		stringBuffer.append("\tpos:");
+		stringBuffer.append(talon.getSelectedSensorPosition(0));
+		stringBuffer.append("u"); /* units */
 
 		/* on button1 press enter closed-loop mode on target position */
-		if (!_lastButton1 && button1) {
+		if (!PrevPressWasButton1 && button1) {
 			/* Position mode - button just pressed */
 
 			/* 10 Rotations * 4096 u/rev in either direction */
 			targetPositionRotations = leftYstick * 10.0 * 4096;
-			_talon.set(ControlMode.Position, targetPositionRotations);
+			talon.set(ControlMode.Position, targetPositionRotations);
 			
 			SmartDashboard.putNumber("targetPositionRotations", targetPositionRotations);
 
-			_sb.append("Button 1 pressed\n");
+			stringBuffer.append("Button 1 pressed\n");
 
 		}
 		/* on button2 just straight drive */
 		if (button2) {
 			/* Percent voltage mode */
-			_talon.set(ControlMode.PercentOutput, leftYstick);
-			_sb.append("Button 2 pressed\n");			
+			talon.set(ControlMode.PercentOutput, leftYstick);
+			stringBuffer.append("Button 2 pressed\n");			
 		}
 		
 		/* if Talon is in position closed-loop, print some more info */
-		if (_talon.getControlMode() == ControlMode.Position) {
+		if (talon.getControlMode() == ControlMode.Position) {
 			/* append more signals to print when in speed mode. */
-			_sb.append("\terr:");
+			stringBuffer.append("\terr:");
 			
-			int currentClosedLoopError = _talon.getClosedLoopError();
+			int currentClosedLoopError = talon.getClosedLoopError();
 
 			
-			_sb.append(currentClosedLoopError);
-			_sb.append("u"); /* units */
+			stringBuffer.append(currentClosedLoopError);
+			stringBuffer.append("u"); /* units */
 
-			_sb.append("\ttrg:");
-			_sb.append(targetPositionRotations);
-			_sb.append("u"); /* units */
+			stringBuffer.append("\ttrg:");
+			stringBuffer.append(targetPositionRotations);
+			stringBuffer.append("u"); /* units */
 			
 			SmartDashboard.putNumber("currentLoopError", currentClosedLoopError);
 		}
@@ -173,12 +173,12 @@ public class Robot extends IterativeRobot {
 		 * print every ten loops, printing too much too fast is generally bad
 		 * for performance
 		 */
-		if (++_loops >= 10) {
-			_loops = 0;
-			System.out.println(_sb.toString());
+		if (++nLoops >= 10) {
+			nLoops = 0;
+			System.out.println(stringBuffer.toString());
 		}
-		_sb.setLength(0);
+		stringBuffer.setLength(0);
 		/* save button state for on press detect */
-		_lastButton1 = button1;
+		PrevPressWasButton1 = button1;
 	}
 }
