@@ -157,7 +157,7 @@ public class Robot extends IterativeRobot {
 			/* append more signals to print when in speed mode. */
 			stringBuffer.append("\terr:");
 			
-			int currentClosedLoopError = talon.getClosedLoopError();
+			int currentClosedLoopError = talon.getClosedLoopError(Constants.kPIDLoopIdx);
 
 			
 			stringBuffer.append(currentClosedLoopError);
